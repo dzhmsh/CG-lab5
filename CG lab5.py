@@ -1,9 +1,23 @@
 import numpy as np
 from PIL import Image, ImageOps
+import random
+import time
+random.seed(time.time())
+
+
+file1 = open('model_1.obj')
+file2 = open('Cod.obj')
+skin = Image.open('frog-legs.jpg')
+voda = Image.open('oda.jpg')
 
 print("I'm trying my hardest")
 H = 2000
 W = 2000
+
+# Простое создание фона - меняем размер и конвертируем в numpy
+voda_resized = voda.resize((W, H))
+img_mat = np.array(voda_resized)[::-1]
+'''
 # Создание холста для изображения размером 2000x2000 пикселей
 img_mat = np.zeros((H, W, 3), dtype=np.uint8)
 
@@ -11,6 +25,7 @@ img_mat = np.zeros((H, W, 3), dtype=np.uint8)
 for i in range(H):
     for j in range(W):
         img_mat[i, j] = [0, 0, 0]
+'''
 
 
 def multi_chetirka(che1, che2):
@@ -31,19 +46,20 @@ def chetirka_rotation(angle, ushki, vertices, sdvig):  # ushki - axis
             q, [0, vertices[i][0], vertices[i][1], vertices[i][2]]), starq)[1:4] + sdvig
 
 
-def triing(s_list, poligons, bones, normis):
+def triing(s_list, poligons, bones, normis, textureExist):
     fix = s_list[1]
     for i in range(2, len(s_list)-1):
         poligons.append([int(fix.split('/')[0]), int(s_list[i].split(
             '/')[0]), int(s_list[i+1].split('/')[0])])
-        bones.append([int(fix.split('/')[1]), int(s_list[i].split(
-            '/')[1]), int(s_list[i+1].split('/')[1])])
+        if (textureExist):
+            bones.append([int(fix.split('/')[1]), int(s_list[i].split(
+                '/')[1]), int(s_list[i+1].split('/')[1])])
         if (fix.split('/')[2]):
             normis.append([int(fix.split('/')[2]), int(s_list[i].split(
                 '/')[2]), int(s_list[i+1].split('/')[2])])
 
 
-def read_obj_data(file):
+def read_obj_data(file, textureExist):
     vertices = []  # вершины
     poligons = []  # полигоны (треугольники)
     meat = []  # координаты текстуры
@@ -56,18 +72,19 @@ def read_obj_data(file):
         if (s_list[0] == 'v'):
             vertices.append(
                 [float(s_list[1]), float(s_list[2]), float(s_list[3])])
-
-        if (s_list[0] == 'vt'):
-            meat.append([float(s_list[1]), float(s_list[2])])
+        if (textureExist):
+            if (s_list[0] == 'vt'):
+                meat.append([float(s_list[1]), float(s_list[2])])
 
         if (s_list[0] == 'f'):
             if (len(s_list) > 3):
-                triing(s_list, poligons, bones, normis)
+                triing(s_list, poligons, bones, normis, textureExist)
             else:
                 poligons.append([int(s_list[1].split(
                     '/')[0]), int(s_list[2].split('/')[0]), int(s_list[3].split('/')[0])])
-                bones.append([int(s_list[1].split(
-                    '/')[1]), int(s_list[2].split('/')[1]), int(s_list[3].split('/')[1])])
+                if (textureExist):
+                    bones.append([int(s_list[1].split(
+                        '/')[1]), int(s_list[2].split('/')[1]), int(s_list[3].split('/')[1])])
 
     return vertices, poligons, meat, bones, normis
 
@@ -76,11 +93,10 @@ def normal_array(poligons, vertices):
     poly_n = []
     lenth = len(poligons)
 
-    '''
-        a0 = vertices[poligons[k][0]]
-        a1 = vertices[poligons[k][1]]
-        a2 = vertices[poligons[k][2]]
-    '''
+    # a0 = vertices[poligons[k][0]]
+    # a1 = vertices[poligons[k][1]]
+    # a2 = vertices[poligons[k][2]]
+
     for k in range(lenth):
         a0 = vertices[poligons[k][0]-1]
         a1 = vertices[poligons[k][1]-1]
@@ -145,7 +161,7 @@ def barycentric_coords(x, y, x0, y0, x1, y1, x2, y2):
 # Основная функция отрисовки 3D-модели
 
 
-def render_model(vertices, poligons, vertex_n, meat, skin, bones, n):
+def render_model(vertices, poligons, vertex_n, meat, skin, bones, n, textureExist):
 
     for k in range(len(poligons)):
         # Получение координат вершин треугольника
@@ -159,18 +175,24 @@ def render_model(vertices, poligons, vertex_n, meat, skin, bones, n):
         y2 = vertices[poligons[k][2]-1][1]
         z2 = vertices[poligons[k][2]-1][2]
 
-        x0t = meat[bones[k][0]-1][0]
-        y0t = meat[bones[k][0]-1][1]
-        x1t = meat[bones[k][1]-1][0]
-        y1t = meat[bones[k][1]-1][1]
-        x2t = meat[bones[k][2]-1][0]
-        y2t = meat[bones[k][2]-1][1]
-
         I0 = np.dot(vertex_n[poligons[k][0]-1], [0, 0, 1])
         I1 = np.dot(vertex_n[poligons[k][1]-1], [0, 0, 1])
         I2 = np.dot(vertex_n[poligons[k][2]-1], [0, 0, 1])
-        pain_triangle(n, x0, y0, z0, x1, y1, z1, x2,
-                      y2, z2, x0t, y0t, x1t, y1t, x2t, y2t, skin, [0, 200, 200], I0, I1, I2)
+
+        if (textureExist):
+            x0t = meat[bones[k][0]-1][0]
+            y0t = meat[bones[k][0]-1][1]
+            x1t = meat[bones[k][1]-1][0]
+            y1t = meat[bones[k][1]-1][1]
+            x2t = meat[bones[k][2]-1][0]
+            y2t = meat[bones[k][2]-1][1]
+
+            pain_triangle(skin, [0, 200, 200], I0, I1, I2, textureExist, n, x0, y0, z0, x1, y1, z1, x2,
+                          y2, z2, x0t, y0t, x1t, y1t, x2t, y2t)
+
+        else:
+            pain_triangle(skin, [0, 200, 200], I0, I1, I2, textureExist, n,
+                          x0, y0, z0, x1, y1, z1, x2, y2, z2)
 
 # Вычисление минимального и максимального значения с ограничением снизу нулем
 
@@ -201,27 +223,30 @@ def normal(a0, a1, a2):
 
 
 def get_color(x, y, cos_angle):
-    contrast = cos_angle  # Кубическое усиление контраста
+    contrast = cos_angle*3  # Кубическое усиление контраста
+
+    rand = random.uniform(0, 200)
 
     # Красный канал - сильно зависит от угла
-    '''r = max(0, min(255, int(-255 * contrast)))
+    r = max(255*cos_angle, min(rand, int(-255 * contrast)))
 
     # Зеленый канал - паттерн + угол
-    g = max(0, min(255, int((y + x) ** abs(contrast) % 256)))
+    g = max(rand, 10, int((y + x) ** abs(contrast) % 256))
 
     # Синий канал - добавляем глубину и зависимость от координат
-    b = max(0, min(255, int(128 * abs(contrast) + (x * y) % 128)))
-'''
-    r = 255*cos_angle
-    b = 0*cos_angle
-    g = 120*cos_angle
+    b = max(120*cos_angle, min(255, int(rand * abs(contrast) + (x * y) % 128)))
+
+    # r = 255*cos_angle
+    # b = 0*cos_angle
+    # g = 120*cos_angle
     return [r, g, b]
 
 # Отрисовка одного треугольника с учетом перспективы и z-буфера
 
 
-def pain_triangle(n, x0, y0, z0, x1, y1, z1, x2,
-                  y2, z2, x0t, y0t, x1t, y1t, x2t, y2t, skin, color, I0, I1, I2):
+def pain_triangle(skin, color, I0, I1, I2, textureExist, n, x0, y0, z0, x1, y1, z1, x2,
+                  y2, z2, x0t=0, y0t=0, x1t=0, y1t=0, x2t=0,
+                  y2t=0):
 
     # Центр изображения для смещения
     center_y = img_mat.shape[0] * 0.5
@@ -258,17 +283,21 @@ def pain_triangle(n, x0, y0, z0, x1, y1, z1, x2,
                     continue
                 # Проверка z-буфера
                 if z_interpolated < zbuf[y, x]:
-                    cell = [1024*(l1*x0t + l2 * x1t + l3 * x2t),
-                            1024 * (l1*y0t + l2*y1t + l3*y2t)]
-                    # img_mat[y, x] = get_color(x, y, I_interpolated)
-                    img_mat[y, x] = np.array(skin.getpixel(
-                        (cell[0], 1023 - cell[1])))*(-I_interpolated)
+                    if (textureExist):
+                        cell = [1024*(l1*x0t + l2 * x1t + l3 * x2t),
+                                1024 * (l1*y0t + l2*y1t + l3*y2t)]
+                        img_mat[y, x] = np.array(skin.getpixel(
+                            (cell[0], 1023 - cell[1])))*(-I_interpolated)
+                    else:
+                        img_mat[y, x] = get_color(x, y, I_interpolated)
+
                     zbuf[y, x] = z_interpolated
 
 
 # Основная программа
-def main(file, skin, sdvig, illusion, zbuf, el_rotation, angle):
-    vertices, poligons, meat, bones, normis = read_obj_data(file)
+def main(file, skin, sdvig, illusion, zbuf, el_rotation, angle, textureExist):
+
+    vertices, poligons, meat, bones, normis = read_obj_data(file, textureExist)
 
     # Применение поворота и смещения
 
@@ -284,21 +313,17 @@ def main(file, skin, sdvig, illusion, zbuf, el_rotation, angle):
     vertex_n = normal_array(poligons, vertices)
 
     # Отрисовка модели
-    render_model(vertices, poligons, vertex_n, meat, skin, bones, 2000)
+    render_model(vertices, poligons, vertex_n, meat,
+                 skin, bones, 10000, textureExist)  # 10 000 для кролина, для остальных 2 000
 
-
-file1 = open('lyagushka.obj')
-file2 = open('Cod-bl.obj')
-skin = Image.open('frog-legs.jpg')
-voda = Image.open('voda3.jpg')
 
 zbuf = np.full((H, W), np.inf)  # Инициализация z-буфера
-illusion = 2
+illusion = 2  # выбор это иллюзия
 
-main(file1, skin, [0, -0.04, 10], 2, zbuf, [1.0, 1.0, 1.0], 11)
+# main(file1, skin, [0, -0.06, 10], 2, zbuf, [1.0, 1.0, 2.0], 10, 1) #frog
 print("HAlf done")
-main(file2, voda, [1, -2, 10], 2, zbuf, [1.0, 1.0, 1.0], 12)
-
+main(file1, voda, [0.0, -0.05, 0.7], 2, zbuf, [1, 1.0, 1.0], 0, 0)
+# main(file2, voda, [-1, -1, 10], 2, zbuf, [1.0, 1.0, 1.0], 0, 0)
 
 # Сохранение изображения
 img = Image.fromarray(img_mat, mode='RGB')
